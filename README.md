@@ -72,3 +72,7 @@ Commande un volet roulant et affiche les raccourcis de la pièce.
 Les Cartes Flex sont gratuites. Si elles te sont utiles, tu peux soutenir leur développement en m’offrant un café. Merci !
 
 [![Buy Me a Coffee — soutenir les Cartes Flex](https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png)](https://buymeacoffee.com/jfk84)
+
+## Licence
+
+Cartes Flex est distribué sous [licence MIT](LICENSE). Clim Flex adapte [Climate Cluster Card](https://github.com/rickyfont94/climate-cluster-card) de rickyfont94 et conserve [sa notice d’origine](clim-flex-card/LICENSE).
