@@ -2,6 +2,12 @@
 
 Regroupez vos éclairages, interrupteurs, scènes et scripts sur une seule carte.
 
+## ☕ Soutenir le projet
+
+Les Cartes Flex sont gratuites. Si elles te sont utiles, tu peux soutenir leur développement en m’offrant un café. Merci !
+
+[![Buy Me a Coffee — soutenir les Cartes Flex](https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png)](https://buymeacoffee.com/jfk84)
+
 ![Aperçu de Boutons Flex avec des entités de démonstration](docs/apercu.png)
 
 Personnalisez les icônes, les couleurs et les actions. Réglez le nombre de colonnes et ajoutez autant de boutons que nécessaire.

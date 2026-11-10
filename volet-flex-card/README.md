@@ -2,6 +2,12 @@
 
 Commandez un volet roulant et regroupez les contrôles de la pièce.
 
+## ☕ Soutenir le projet
+
+Les Cartes Flex sont gratuites. Si elles te sont utiles, tu peux soutenir leur développement en m’offrant un café. Merci !
+
+[![Buy Me a Coffee — soutenir les Cartes Flex](https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png)](https://buymeacoffee.com/jfk84)
+
 ![Aperçu de Volet Flex avec des entités de démonstration](docs/apercu.png)
 
 Affichez les commandes d’ouverture, d’arrêt et de fermeture, le curseur de position et des raccourcis vers les entités de la pièce.

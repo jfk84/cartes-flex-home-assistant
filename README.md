@@ -2,6 +2,12 @@
 
 Cinq cartes personnalisables pour piloter votre maison depuis vos tableaux de bord.
 
+## ☕ Soutenir le projet
+
+Les Cartes Flex sont gratuites. Si elles te sont utiles, tu peux soutenir leur développement en m’offrant un café. Merci !
+
+[![Buy Me a Coffee — soutenir les Cartes Flex](https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png)](https://buymeacoffee.com/jfk84)
+
 | Carte | Fonction |
 | --- | --- |
 | [Boutons Flex](./boutons-flex-card/README.md) | Regroupez vos éclairages, interrupteurs, scènes et scripts sur une seule carte. |

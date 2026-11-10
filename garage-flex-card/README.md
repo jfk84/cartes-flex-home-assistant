@@ -2,6 +2,12 @@
 
 Visualisez l’ouverture et la fermeture d’une porte de garage animée.
 
+## ☕ Soutenir le projet
+
+Les Cartes Flex sont gratuites. Si elles te sont utiles, tu peux soutenir leur développement en m’offrant un café. Merci !
+
+[![Buy Me a Coffee — soutenir les Cartes Flex](https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png)](https://buymeacoffee.com/jfk84)
+
 ![Aperçu de Garage Flex avec des entités de démonstration](docs/apercu.png)
 
 La porte animée révèle une voiture stylisée à l’ouverture. La carte utilise la position remontée par l’entité quand elle est disponible. Une entité `state_entity` peut fournir le retour d’état séparément.

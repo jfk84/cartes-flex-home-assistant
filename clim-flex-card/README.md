@@ -2,6 +2,12 @@
 
 Pilotez votre chauffage ou votre climatisation depuis un cadran animé.
 
+## ☕ Soutenir le projet
+
+Les Cartes Flex sont gratuites. Si elles te sont utiles, tu peux soutenir leur développement en m’offrant un café. Merci !
+
+[![Buy Me a Coffee — soutenir les Cartes Flex](https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png)](https://buymeacoffee.com/jfk84)
+
 ![Aperçu de Clim Flex avec des entités de démonstration](docs/apercu.png)
 
 Ajustez la température, choisissez les commandes à afficher et redimensionnez le cadran. Les commandes disponibles dépendent de votre entité `climate`.
