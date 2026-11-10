@@ -1,0 +1,7 @@
+type: custom:portail-flex-card
+entity: cover.portail
+name: Portail
+gate_type: single
+hinge_side: right
+height: 145
+animation: true

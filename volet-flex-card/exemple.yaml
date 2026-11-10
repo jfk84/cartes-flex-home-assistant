@@ -1,0 +1,9 @@
+type: custom:volet-flex-card
+entity: cover.volet
+name: Volet
+height: 110
+show_controls: true
+sub_buttons:
+  - entity: sensor.temperature_piece
+    icon: mdi:thermometer
+    show_state: true

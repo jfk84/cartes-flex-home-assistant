@@ -1,0 +1,6 @@
+type: custom:clim-flex-card
+entity: climate.thermostat
+name: Climatisation
+card_width: "100%"
+card_height: "280px"
+keep_ratio: false

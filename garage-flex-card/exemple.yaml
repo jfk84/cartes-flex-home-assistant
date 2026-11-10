@@ -1,0 +1,5 @@
+type: custom:garage-flex-card
+entity: cover.porte_garage
+name: Porte de garage
+height: 145
+animation: true

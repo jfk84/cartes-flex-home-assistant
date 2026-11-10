@@ -1,0 +1,9 @@
+type: custom:boutons-flex-card
+entity: switch.lumiere
+name: Pièce
+columns: 2
+sub_buttons:
+  - entity: scene.ambiance
+    name: Ambiance
+    icon: mdi:palette
+    show_name: true
