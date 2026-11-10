@@ -2,6 +2,14 @@
 
 Cinq cartes personnalisables pour piloter votre maison depuis vos tableaux de bord.
 
+## Télécharger les cartes
+
+[![Télécharger les 5 cartes (ZIP)](https://img.shields.io/badge/T%C3%A9l%C3%A9charger_les_5_cartes-ZIP-0075ca?style=for-the-badge&logo=github)](https://github.com/jfk84/cartes-flex-home-assistant/archive/refs/heads/main.zip)
+
+1. Télécharge le ZIP et décompresse-le. Chaque carte a son propre dossier.
+2. Pour une installation manuelle, copie le fichier `*-flex-card.js` de la carte choisie dans le dossier `www` de ta configuration Home Assistant.
+3. Dans **Paramètres → Tableaux de bord → ⋮ → Ressources**, ajoute le fichier comme **Module JavaScript**. Par exemple, pour Volet Flex, utilise `/local/volet-flex-card.js`. Recharge la page, puis ajoute une carte manuelle avec l’exemple YAML de sa fiche.
+
 ## ☕ Soutenir le projet
 
 Les Cartes Flex sont gratuites. Si elles te sont utiles, tu peux soutenir leur développement en m’offrant un café. Merci !
