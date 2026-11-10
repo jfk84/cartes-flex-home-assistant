@@ -2,7 +2,19 @@
 
 Cinq cartes personnalisables pour piloter votre maison depuis vos tableaux de bord.
 
-## Télécharger les cartes
+## Installer depuis le Marketplace
+
+<!-- ha-marketplace:exclude-start -->
+[![Ouvrir Cartes Flex dans le Marketplace](https://my.home-assistant.io/badges/marketplace_repository.svg)](https://my.home-assistant.io/redirect/marketplace_repository/?owner=jfk84&repository=cartes-flex-home-assistant&category=plugin)
+
+Dans Home Assistant 2026.11 ou plus récent, ouvre le lien ci-dessus. Si le Marketplace le demande, ajoute **Cartes Flex** comme dépôt personnalisé et connecte GitHub. Tu peux aussi passer par **Paramètres → Marketplace → Ajouter depuis un lien** et coller [l’adresse du dépôt](https://github.com/jfk84/cartes-flex-home-assistant).
+<!-- ha-marketplace:exclude-end -->
+
+Clique sur **Installer** pour charger les cinq cartes, puis recharge la page. Tu peux ensuite ajouter celles que tu veux à ton tableau de bord. Les exemples YAML de chaque carte sont ci-dessous.
+
+Si tu avais installé ces cartes manuellement, retire leurs anciennes entrées individuelles dans **Ressources** après l’installation du pack et avant de recharger la page.
+
+## Télécharger les cartes (installation manuelle)
 
 [![Télécharger les 5 cartes (ZIP)](https://img.shields.io/badge/T%C3%A9l%C3%A9charger_les_5_cartes-ZIP-0075ca?style=for-the-badge&logo=github)](https://github.com/jfk84/cartes-flex-home-assistant/archive/refs/heads/main.zip)
 [Voir le guide d’installation en images](INSTALLATION.md)
@@ -51,7 +63,7 @@ Commande un volet roulant et affiche les raccourcis de la pièce.
 
 [Voir la configuration de Volet Flex](./volet-flex-card/README.md#configurer-la-carte)
 
-## Installer une carte dans Home Assistant
+## Aide pour l’installation manuelle
 
 [Voir le guide d’installation en images](INSTALLATION.md) pour savoir quel fichier sortir du ZIP, où le copier et comment ajouter la carte.
 
