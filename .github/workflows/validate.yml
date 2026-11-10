@@ -1,0 +1,17 @@
+name: Validation Marketplace
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Vérifier le dépôt
+        uses: hacs/action@main
+        with:
+          category: plugin
