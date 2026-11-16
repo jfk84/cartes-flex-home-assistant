@@ -39,3 +39,5 @@ sub_buttons:
 ```
 
 [Exemple YAML à télécharger](exemple.yaml)
+
+Pendant un mouvement, la carte conserve l’indication **Ouverture** ou **Fermeture** si le volet renvoie brièvement un état inconnu.

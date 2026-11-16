@@ -351,7 +351,7 @@ if (!customElements.get("boutons-flex-card")) {
 ;
 if (!customElements.get("clim-flex-card")) {
 /*
-Clim Flex 2.2 — original rendering, configurable controls, sizing and persistent editor inputs.
+Clim Flex 2.3 — original rendering, configurable controls, sizing and external room sensor.
 Upstream: https://github.com/rickyfont94/climate-cluster-card
 Base: user-supplied 2.3.1; original drawing and animations retained; optional independent dimensions.
 
@@ -3076,6 +3076,8 @@ SOFTWARE.
     // both range attrs are present AND (the state is heat_cool, or the single
     // target is empty). A normal single-target entity never satisfies this (no
     // range attrs), so its behavior is untouched.
+    _flexTarget(attr) { return this._toDisplay(num(attr.temperature)); }
+    _flexRoom(attr) { return this._toDisplay(num(attr.current_temperature)); }
     _isHeatCool() {
       const s = this._st(this._config && this._config.entity);
       if (!s) return false;
@@ -3964,7 +3966,7 @@ SOFTWARE.
           this._optimisticTarget = null;
           this._optimisticUntil = 0;
         } else {
-          const liveT = this._toDisplay(num(attr.temperature));
+          const liveT = this._flexTarget(attr);
           if (liveT != null && this._optimisticTarget != null
               && Math.abs(liveT - this._optimisticTarget) < 0.1) {
             this._optimisticTarget = null;
@@ -4355,7 +4357,7 @@ SOFTWARE.
 
       const optActive = this._optimisticUntil && Date.now() < this._optimisticUntil
         && this._optimisticTarget != null;
-      let cur = optActive ? this._optimisticTarget : this._toDisplay(num((s.attributes || {}).temperature));
+      let cur = optActive ? this._optimisticTarget : this._flexTarget(s.attributes || {});
       if (cur == null) cur = lo;
       let nt = cur;
       if (k === "ArrowUp" || k === "ArrowRight") nt = cur + step;
@@ -5346,7 +5348,7 @@ SOFTWARE.
       const { lo, hi } = this._range();
       const step = this._step();
       const optActive = this._optimisticUntil && Date.now() < this._optimisticUntil && this._optimisticTarget != null;
-      const cur = optActive ? this._optimisticTarget : this._toDisplay(num((s.attributes || {}).temperature));
+      const cur = optActive ? this._optimisticTarget : this._flexTarget(s.attributes || {});
       if (cur == null) return;
       const next = clamp(Math.round((cur + dir * step) / step) * step, lo, hi);
       if (next === cur) return; // already against the rail
@@ -6108,7 +6110,7 @@ SOFTWARE.
       const a2 = (st && st.attributes) || {};
       const r = this._range();
       const set = setOverride != null ? setOverride : this._faceSet;
-      const room = this._toDisplay(num(a2.current_temperature));
+      const room = this._flexRoom(a2);
       const act = String(a2.hvac_action || "").toUpperCase();
       const fallback = set == null ? r.lo : set;
       return {
@@ -6824,7 +6826,7 @@ SOFTWARE.
         this._refs.tempNeedleLo.style.display = "none";
         const optActive = this._optimisticUntil && Date.now() < this._optimisticUntil
           && this._optimisticTarget != null;
-        const target = optActive ? this._optimisticTarget : this._toDisplay(num(attr.temperature));
+        const target = optActive ? this._optimisticTarget : this._flexTarget(attr);
         if (target != null) this._paintTempArc(target);
         else { this._refs.bigNum.textContent = "--"; this._refs.bigNum.setAttribute("font-size", "104"); }
       }
@@ -6851,7 +6853,7 @@ SOFTWARE.
       this._refs.warmHalo.style.opacity = off ? "0" : "0.40";
 
       // ---- current-temp marker (white inset triangle on the temp arc) ----
-      const cur = this._toDisplay(num(attr.current_temperature));
+      const cur = this._flexRoom(attr);
       if (cur != null && showCurrent) {
         const curAng = this._tempToAng(cur);
         const cm = polar(CX, CY, R_TEMP + 7, curAng);
@@ -9929,6 +9931,39 @@ ${FACE.KEYFRAMES}
     static getConfigElement() { return document.createElement('clim-flex-card-editor'); }
     static getStubConfig(hass) { return {...ClimateClusterCard.getStubConfig(hass),fan_clover:true,fan_style:'silk'}; }
     setConfig(config){super.setConfig(config);this._flexApplySize();}
+    _isHeatCool() { return false; }
+    _flexTarget(attr) {
+      return super._isHeatCool() ? (this._hcLow() + this._hcHigh()) / 2 : super._flexTarget(attr);
+    }
+    _flexRoom(attr) {
+      const sensor = this._st(this._config?.room_temperature_entity);
+      const temperature = sensor?.state?.trim() ? Number(sensor.state) : NaN;
+      if (!Number.isFinite(temperature)) return super._flexRoom(attr);
+      const unit = sensor.attributes?.unit_of_measurement;
+      if (unit === '°C') return this._unit() === 'F' ? cToF(temperature) : temperature;
+      if (unit === '°F') return this._unit() === 'C' ? fToC(temperature) : temperature;
+      return super._flexRoom(attr);
+    }
+    _callTemp(target) {
+      if (!super._isHeatCool()) return super._callTemp(target);
+      if (target == null) return;
+      const entity = this._config.entity;
+      const attr = this._st(entity).attributes;
+      const low = num(attr.target_temp_low), high = num(attr.target_temp_high);
+      const step = num(attr.target_temp_step);
+      let shift = this._toHa(target) - (low + high) / 2;
+      if (step > 0) shift = Math.round(shift / step) * step;
+      shift = clamp(shift, (num(attr.min_temp) ?? -Infinity) - low,
+        (num(attr.max_temp) ?? Infinity) - high);
+      const rounded = value => Math.round(value * 100) / 100;
+      const nextLow = rounded(low + shift), nextHigh = rounded(high + shift);
+      this._optimisticTarget = this._toDisplay((nextLow + nextHigh) / 2);
+      this._paintTempArc(this._optimisticTarget);
+      if (nextLow === low && nextHigh === high) return;
+      this._svc('climate', 'set_temperature', {
+        entity_id: entity, target_temp_low: nextLow, target_temp_high: nextHigh,
+      }, () => this._revertTemp());
+    }
     connectedCallback(){
       super.connectedCallback();
       if(typeof ResizeObserver!=='undefined'){
@@ -10096,6 +10131,7 @@ ${FACE.KEYFRAMES}
     _form(schema,data,callback){
       const form=document.createElement('ha-form');form.hass=this._hass;form.schema=schema;form.data=data;
       const labels={name:'Nom sous le bouton',action:'Action',entity:'Entité (vide = climatisation)',display_value:'Texte affiché (vide = état actuel)',value:'Mode fixe : heat, cool, off…',color:'Couleur (facultative)',service:'Action Home Assistant : domaine.action',data:'Données de l’action',fan_toggle_manual:'FAN : permettre le retour en manuel',card_width:'Largeur (ex. 100%, 80% ou 500px)',card_height:'Hauteur (ex. 250px ; vide = automatique)',keep_ratio:'Conserver les proportions du cadran'};
+      labels.room_temperature_entity='Capteur de température ambiante (facultatif)';
       form.computeLabel=field=>labels[field.name]||field.name;form.addEventListener('value-changed',e=>{e.stopPropagation();form.data={...e.detail.value};callback(e.detail.value);});return form;
     }
     _render(){
@@ -10108,7 +10144,18 @@ ${FACE.KEYFRAMES}
         this._config.keep_ratio=value.keep_ratio===true;this._emit();
       }));this.shadowRoot.prepend(sizing);
       const native=document.createElement('clim-flex-native-editor');native.hass=this._hass;native.setConfig(this._config);
-      native.addEventListener('config-changed',e=>{e.stopPropagation();const next={...e.detail.config};if(Array.isArray(this._config.buttons))next.buttons=this._config.buttons;else delete next.buttons;for(const key of ['fan_toggle_manual','card_width','card_height','keep_ratio']){if(key in this._config)next[key]=this._config[key];else delete next[key];}this._config=next;this._emit();});this.shadowRoot.querySelector('#native').appendChild(native);
+      native.addEventListener('config-changed',e=>{e.stopPropagation();const next={...e.detail.config};if(Array.isArray(this._config.buttons))next.buttons=this._config.buttons;else delete next.buttons;for(const key of ['fan_toggle_manual','card_width','card_height','keep_ratio','room_temperature_entity']){if(key in this._config)next[key]=this._config[key];else delete next[key];}this._config=next;this._emit();});
+      const climateSettings=this.shadowRoot.querySelector('#native');
+      climateSettings.appendChild(this._form(
+        [{name:'room_temperature_entity',selector:{entity:{filter:[{domain:'sensor'}]}}}],
+        {room_temperature_entity:this._config.room_temperature_entity},
+        value=>{
+          if(value.room_temperature_entity)this._config.room_temperature_entity=value.room_temperature_entity;
+          else delete this._config.room_temperature_entity;
+          this._emit();
+        }
+      ));
+      climateSettings.appendChild(native);
       this.shadowRoot.querySelector('#fan').appendChild(this._form([{name:'fan_toggle_manual',selector:{boolean:{}}}],{fan_toggle_manual:this._config.fan_toggle_manual!==false},value=>{this._config.fan_toggle_manual=value.fan_toggle_manual;this._emit();}));
       const buttons=Array.isArray(this._config.buttons)?this._config.buttons:[];
       buttons.forEach((b,i)=>{
@@ -10894,7 +10941,7 @@ if (!customElements.get("portail-flex-card")) {
 }
 ;
 if (!customElements.get("volet-flex-card")) {
-/* Volet Flex 1.7 — free entity buttons, persistent editor and overall height. */
+/* Volet Flex 1.8 — handles temporary unknown states during travel. */
 (() => {
   'use strict';
   const TYPE='volet-flex-card';
@@ -10946,10 +10993,43 @@ if (!customElements.get("volet-flex-card")) {
     }
     setConfig(config){
       if(!config||typeof config.entity!=='string'||!config.entity.startsWith('cover.'))throw Error('Sélectionne une entité cover.* pour le volet.');
+      if(this._config?.entity!==config.entity){
+        this._forgetMotion();
+        this._reportedCoverState=this._state(config.entity)?.state;
+      }
       this._config=normalize(config);this._render();
     }
-    set hass(hass){this._hass=hass;this._render();}
+    set hass(hass){
+      const id=this._config?.entity;
+      this._hass=hass;
+      const state=this._state(id)?.state;
+      if(state==='opening'||state==='closing')this._rememberMotion(state);
+      else if(state!=='unknown'&&state!==this._reportedCoverState)this._forgetMotion();
+      this._reportedCoverState=state;
+      if(state==='unknown')this._scheduleMotionExpiry();
+      this._render();
+    }
+    _forgetMotion(){
+      if(this._motionTimer)clearTimeout(this._motionTimer);
+      this._motionTimer=null;
+      this._motion=null;
+    }
+    _rememberMotion(state){
+      this._forgetMotion();
+      this._motion={state,expires:Date.now()+60000};
+    }
+    _scheduleMotionExpiry(){
+      if(!this._motion||this._motionTimer)return;
+      const remaining=this._motion.expires-Date.now();
+      if(remaining<=0){this._forgetMotion();return;}
+      this._motionTimer=setTimeout(()=>{this._forgetMotion();this._render();},remaining);
+    }
+    _coverState(s){
+      return s?.state==='unknown'&&this._motion?.expires>Date.now()?this._motion.state:s?.state;
+    }
     connectedCallback(){
+      if(this._state(this._config?.entity)?.state==='unknown')this._scheduleMotionExpiry();
+      this._render();
       this._fitHeight();
       if(typeof ResizeObserver!=='undefined'){
         this._sizeObserver?.disconnect();this._sizeObserver=new ResizeObserver(entries=>{
@@ -10957,7 +11037,7 @@ if (!customElements.get("volet-flex-card")) {
         });this._sizeObserver.observe(this);
       }
     }
-    disconnectedCallback(){this._sizeObserver?.disconnect();this._contentObserver?.disconnect();if(this._heightFrame)cancelAnimationFrame(this._heightFrame);this._heightFrame=0;}
+    disconnectedCallback(){this._forgetMotion();this._sizeObserver?.disconnect();this._contentObserver?.disconnect();if(this._heightFrame)cancelAnimationFrame(this._heightFrame);this._heightFrame=0;}
     _scheduleHeight(){
       if(typeof requestAnimationFrame!=='function')return;
       if(this._heightFrame)cancelAnimationFrame(this._heightFrame);
@@ -11053,12 +11133,16 @@ if (!customElements.get("volet-flex-card")) {
       return finite(value)?clamp(Number(value),0,100):null;
     }
     _coverLabel(){
-      const s=this._state(this._config.entity);if(!s)return 'Entité introuvable';if(!alive(s))return 'Indisponible';
+      const s=this._state(this._config.entity);if(!s)return 'Entité introuvable';
+      const state=this._coverState(s);
+      if(state==='unavailable')return 'Indisponible';
+      if(state==='unknown')return 'Inconnu';
       const labels={open:'Ouvert',closed:'Fermé',opening:'Ouverture…',closing:'Fermeture…'};
-      const value=this._positionValue();return (labels[s.state]||s.state)+(value===null?'':' · '+fmt(value,0)+' %');
+      const value=this._positionValue();return (labels[state]||state)+(value===null?'':' · '+fmt(value,0)+' %');
     }
     _canCover(action){
-      const s=this._state(this._config.entity);if(!alive(s))return false;
+      const s=this._state(this._config.entity);
+      if(!alive(s)&&!(action==='stop'&&['opening','closing'].includes(this._coverState(s))))return false;
       const bit={open:1,close:2,position:4,stop:8}[action];
       const features=s.attributes?.supported_features;
       if(typeof features!=='number'||!bit||!(features&bit))return false;
@@ -11070,10 +11154,27 @@ if (!customElements.get("volet-flex-card")) {
       const requestKey=stable([domain,action,data,target]);
       if(this._requests.has(requestKey))return;
       this._requests.add(requestKey);
+      const entity=this._config.entity;
+      const directTarget=target?target.entity_id:data?.entity_id;
+      if(domain==='cover'&&directTarget===entity){
+        const current=this._coverState(this._state(entity));
+        const position=this._positionValue(), requested=Number(data?.position);
+        const direction=action==='open_cover'||(action==='toggle'&&current==='closed')?'opening':
+          action==='close_cover'||(action==='toggle'&&current==='open')?'closing':
+          action==='set_cover_position'&&position!==null&&Number.isFinite(requested)&&requested!==position?
+            (requested>position?'opening':'closing'):null;
+        if(direction)this._rememberMotion(direction);
+        else if(action==='stop_cover'||action==='toggle')this._forgetMotion();
+        if(this._state(entity)?.state==='unknown'){this._scheduleMotionExpiry();this._render();}
+      }
+      const motion=this._motion;
       // Dispatch immediately. Waiting for the backend never disables or redraws the card.
       if(this._error){this._error='';this._render();}
       try{await this._hass.callService(domain,action,data,target);}
-      catch(error){this._error=error?.message||'La commande a échoué.';this._render();}
+      catch(error){
+        if(domain==='cover'&&directTarget===entity&&this._motion===motion)this._forgetMotion();
+        this._error=error?.message||'La commande a échoué.';this._render();
+      }
       finally{this._requests.delete(requestKey);}
     }
     _run(action,id){
@@ -11093,10 +11194,11 @@ if (!customElements.get("volet-flex-card")) {
       if(!this._config)return;
       const c=this._config,s=this._state(c.entity),p=this._positionValue(),buttons=this._subButtons();
       const ids=[c.entity,this._roomButton().entity,c.tap_entity,c.icon_tap_entity,...buttons.map(b=>b.entity)];
-      const signature=stable([c,this._error,!!this._hass,ids.map(id=>this._state(id))]);
+      const coverState=this._coverState(s);
+      const signature=stable([c,this._error,!!this._hass,coverState,ids.map(id=>this._state(id))]);
       if(signature===this._renderSignature)return;
       this._renderSignature=signature;
-      const moving=alive(s)&&['opening','closing'].includes(s.state);
+      const moving=['opening','closing'].includes(coverState);
       const title=c.name||s?.attributes?.friendly_name||'Volet';
       const hasRow=c.show_room!==false||buttons.length>0;
       const focus=this.shadowRoot.activeElement;
@@ -11108,7 +11210,7 @@ if (!customElements.get("volet-flex-card")) {
           <button class="cover-text cover-main" data-action="card" aria-label="${esc(title+' : '+this._coverLabel())}" ${this._buttonEnabled(this._surfaceButton('card'))?'':'disabled'}><span class="name">${esc(title)}</span><span class="state">${esc(this._coverLabel())}</span></button>
           ${moving?'<span class="motion-dot" aria-hidden="true"></span>':''}
         </div>
-        ${c.show_position_bar!==false?`<div class="position-track" aria-hidden="true"><div class="position-fill" style="width:${alive(s)&&p!==null?p:0}%"></div></div>`:''}
+        ${c.show_position_bar!==false?`<div class="position-track" aria-hidden="true"><div class="position-fill" style="width:${(alive(s)||moving)&&p!==null?p:0}%"></div></div>`:''}
         ${hasRow?`<div class="info-row">
           ${c.show_room!==false?this._entityButton(this._roomButton(),true):''}
           <div class="details">${buttons.map((button,i)=>this._entityButton(button,false,i)).join('')}</div>

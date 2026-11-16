@@ -1,4 +1,4 @@
-/* Volet Flex 1.7 — free entity buttons, persistent editor and overall height. */
+/* Volet Flex 1.8 — handles temporary unknown states during travel. */
 (() => {
   'use strict';
   const TYPE='volet-flex-card';
@@ -50,10 +50,43 @@
     }
     setConfig(config){
       if(!config||typeof config.entity!=='string'||!config.entity.startsWith('cover.'))throw Error('Sélectionne une entité cover.* pour le volet.');
+      if(this._config?.entity!==config.entity){
+        this._forgetMotion();
+        this._reportedCoverState=this._state(config.entity)?.state;
+      }
       this._config=normalize(config);this._render();
     }
-    set hass(hass){this._hass=hass;this._render();}
+    set hass(hass){
+      const id=this._config?.entity;
+      this._hass=hass;
+      const state=this._state(id)?.state;
+      if(state==='opening'||state==='closing')this._rememberMotion(state);
+      else if(state!=='unknown'&&state!==this._reportedCoverState)this._forgetMotion();
+      this._reportedCoverState=state;
+      if(state==='unknown')this._scheduleMotionExpiry();
+      this._render();
+    }
+    _forgetMotion(){
+      if(this._motionTimer)clearTimeout(this._motionTimer);
+      this._motionTimer=null;
+      this._motion=null;
+    }
+    _rememberMotion(state){
+      this._forgetMotion();
+      this._motion={state,expires:Date.now()+60000};
+    }
+    _scheduleMotionExpiry(){
+      if(!this._motion||this._motionTimer)return;
+      const remaining=this._motion.expires-Date.now();
+      if(remaining<=0){this._forgetMotion();return;}
+      this._motionTimer=setTimeout(()=>{this._forgetMotion();this._render();},remaining);
+    }
+    _coverState(s){
+      return s?.state==='unknown'&&this._motion?.expires>Date.now()?this._motion.state:s?.state;
+    }
     connectedCallback(){
+      if(this._state(this._config?.entity)?.state==='unknown')this._scheduleMotionExpiry();
+      this._render();
       this._fitHeight();
       if(typeof ResizeObserver!=='undefined'){
         this._sizeObserver?.disconnect();this._sizeObserver=new ResizeObserver(entries=>{
@@ -61,7 +94,7 @@
         });this._sizeObserver.observe(this);
       }
     }
-    disconnectedCallback(){this._sizeObserver?.disconnect();this._contentObserver?.disconnect();if(this._heightFrame)cancelAnimationFrame(this._heightFrame);this._heightFrame=0;}
+    disconnectedCallback(){this._forgetMotion();this._sizeObserver?.disconnect();this._contentObserver?.disconnect();if(this._heightFrame)cancelAnimationFrame(this._heightFrame);this._heightFrame=0;}
     _scheduleHeight(){
       if(typeof requestAnimationFrame!=='function')return;
       if(this._heightFrame)cancelAnimationFrame(this._heightFrame);
@@ -157,12 +190,16 @@
       return finite(value)?clamp(Number(value),0,100):null;
     }
     _coverLabel(){
-      const s=this._state(this._config.entity);if(!s)return 'Entité introuvable';if(!alive(s))return 'Indisponible';
+      const s=this._state(this._config.entity);if(!s)return 'Entité introuvable';
+      const state=this._coverState(s);
+      if(state==='unavailable')return 'Indisponible';
+      if(state==='unknown')return 'Inconnu';
       const labels={open:'Ouvert',closed:'Fermé',opening:'Ouverture…',closing:'Fermeture…'};
-      const value=this._positionValue();return (labels[s.state]||s.state)+(value===null?'':' · '+fmt(value,0)+' %');
+      const value=this._positionValue();return (labels[state]||state)+(value===null?'':' · '+fmt(value,0)+' %');
     }
     _canCover(action){
-      const s=this._state(this._config.entity);if(!alive(s))return false;
+      const s=this._state(this._config.entity);
+      if(!alive(s)&&!(action==='stop'&&['opening','closing'].includes(this._coverState(s))))return false;
       const bit={open:1,close:2,position:4,stop:8}[action];
       const features=s.attributes?.supported_features;
       if(typeof features!=='number'||!bit||!(features&bit))return false;
@@ -174,10 +211,27 @@
       const requestKey=stable([domain,action,data,target]);
       if(this._requests.has(requestKey))return;
       this._requests.add(requestKey);
+      const entity=this._config.entity;
+      const directTarget=target?target.entity_id:data?.entity_id;
+      if(domain==='cover'&&directTarget===entity){
+        const current=this._coverState(this._state(entity));
+        const position=this._positionValue(), requested=Number(data?.position);
+        const direction=action==='open_cover'||(action==='toggle'&&current==='closed')?'opening':
+          action==='close_cover'||(action==='toggle'&&current==='open')?'closing':
+          action==='set_cover_position'&&position!==null&&Number.isFinite(requested)&&requested!==position?
+            (requested>position?'opening':'closing'):null;
+        if(direction)this._rememberMotion(direction);
+        else if(action==='stop_cover'||action==='toggle')this._forgetMotion();
+        if(this._state(entity)?.state==='unknown'){this._scheduleMotionExpiry();this._render();}
+      }
+      const motion=this._motion;
       // Dispatch immediately. Waiting for the backend never disables or redraws the card.
       if(this._error){this._error='';this._render();}
       try{await this._hass.callService(domain,action,data,target);}
-      catch(error){this._error=error?.message||'La commande a échoué.';this._render();}
+      catch(error){
+        if(domain==='cover'&&directTarget===entity&&this._motion===motion)this._forgetMotion();
+        this._error=error?.message||'La commande a échoué.';this._render();
+      }
       finally{this._requests.delete(requestKey);}
     }
     _run(action,id){
@@ -197,10 +251,11 @@
       if(!this._config)return;
       const c=this._config,s=this._state(c.entity),p=this._positionValue(),buttons=this._subButtons();
       const ids=[c.entity,this._roomButton().entity,c.tap_entity,c.icon_tap_entity,...buttons.map(b=>b.entity)];
-      const signature=stable([c,this._error,!!this._hass,ids.map(id=>this._state(id))]);
+      const coverState=this._coverState(s);
+      const signature=stable([c,this._error,!!this._hass,coverState,ids.map(id=>this._state(id))]);
       if(signature===this._renderSignature)return;
       this._renderSignature=signature;
-      const moving=alive(s)&&['opening','closing'].includes(s.state);
+      const moving=['opening','closing'].includes(coverState);
       const title=c.name||s?.attributes?.friendly_name||'Volet';
       const hasRow=c.show_room!==false||buttons.length>0;
       const focus=this.shadowRoot.activeElement;
@@ -212,7 +267,7 @@
           <button class="cover-text cover-main" data-action="card" aria-label="${esc(title+' : '+this._coverLabel())}" ${this._buttonEnabled(this._surfaceButton('card'))?'':'disabled'}><span class="name">${esc(title)}</span><span class="state">${esc(this._coverLabel())}</span></button>
           ${moving?'<span class="motion-dot" aria-hidden="true"></span>':''}
         </div>
-        ${c.show_position_bar!==false?`<div class="position-track" aria-hidden="true"><div class="position-fill" style="width:${alive(s)&&p!==null?p:0}%"></div></div>`:''}
+        ${c.show_position_bar!==false?`<div class="position-track" aria-hidden="true"><div class="position-fill" style="width:${(alive(s)||moving)&&p!==null?p:0}%"></div></div>`:''}
         ${hasRow?`<div class="info-row">
           ${c.show_room!==false?this._entityButton(this._roomButton(),true):''}
           <div class="details">${buttons.map((button,i)=>this._entityButton(button,false,i)).join('')}</div>

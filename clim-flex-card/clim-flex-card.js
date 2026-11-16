@@ -1,5 +1,5 @@
 /*
-Clim Flex 2.2 — original rendering, configurable controls, sizing and persistent editor inputs.
+Clim Flex 2.3 — original rendering, configurable controls, sizing and external room sensor.
 Upstream: https://github.com/rickyfont94/climate-cluster-card
 Base: user-supplied 2.3.1; original drawing and animations retained; optional independent dimensions.
 
@@ -2724,6 +2724,8 @@ SOFTWARE.
     // both range attrs are present AND (the state is heat_cool, or the single
     // target is empty). A normal single-target entity never satisfies this (no
     // range attrs), so its behavior is untouched.
+    _flexTarget(attr) { return this._toDisplay(num(attr.temperature)); }
+    _flexRoom(attr) { return this._toDisplay(num(attr.current_temperature)); }
     _isHeatCool() {
       const s = this._st(this._config && this._config.entity);
       if (!s) return false;
@@ -3612,7 +3614,7 @@ SOFTWARE.
           this._optimisticTarget = null;
           this._optimisticUntil = 0;
         } else {
-          const liveT = this._toDisplay(num(attr.temperature));
+          const liveT = this._flexTarget(attr);
           if (liveT != null && this._optimisticTarget != null
               && Math.abs(liveT - this._optimisticTarget) < 0.1) {
             this._optimisticTarget = null;
@@ -4003,7 +4005,7 @@ SOFTWARE.
 
       const optActive = this._optimisticUntil && Date.now() < this._optimisticUntil
         && this._optimisticTarget != null;
-      let cur = optActive ? this._optimisticTarget : this._toDisplay(num((s.attributes || {}).temperature));
+      let cur = optActive ? this._optimisticTarget : this._flexTarget(s.attributes || {});
       if (cur == null) cur = lo;
       let nt = cur;
       if (k === "ArrowUp" || k === "ArrowRight") nt = cur + step;
@@ -4994,7 +4996,7 @@ SOFTWARE.
       const { lo, hi } = this._range();
       const step = this._step();
       const optActive = this._optimisticUntil && Date.now() < this._optimisticUntil && this._optimisticTarget != null;
-      const cur = optActive ? this._optimisticTarget : this._toDisplay(num((s.attributes || {}).temperature));
+      const cur = optActive ? this._optimisticTarget : this._flexTarget(s.attributes || {});
       if (cur == null) return;
       const next = clamp(Math.round((cur + dir * step) / step) * step, lo, hi);
       if (next === cur) return; // already against the rail
@@ -5756,7 +5758,7 @@ SOFTWARE.
       const a2 = (st && st.attributes) || {};
       const r = this._range();
       const set = setOverride != null ? setOverride : this._faceSet;
-      const room = this._toDisplay(num(a2.current_temperature));
+      const room = this._flexRoom(a2);
       const act = String(a2.hvac_action || "").toUpperCase();
       const fallback = set == null ? r.lo : set;
       return {
@@ -6472,7 +6474,7 @@ SOFTWARE.
         this._refs.tempNeedleLo.style.display = "none";
         const optActive = this._optimisticUntil && Date.now() < this._optimisticUntil
           && this._optimisticTarget != null;
-        const target = optActive ? this._optimisticTarget : this._toDisplay(num(attr.temperature));
+        const target = optActive ? this._optimisticTarget : this._flexTarget(attr);
         if (target != null) this._paintTempArc(target);
         else { this._refs.bigNum.textContent = "--"; this._refs.bigNum.setAttribute("font-size", "104"); }
       }
@@ -6499,7 +6501,7 @@ SOFTWARE.
       this._refs.warmHalo.style.opacity = off ? "0" : "0.40";
 
       // ---- current-temp marker (white inset triangle on the temp arc) ----
-      const cur = this._toDisplay(num(attr.current_temperature));
+      const cur = this._flexRoom(attr);
       if (cur != null && showCurrent) {
         const curAng = this._tempToAng(cur);
         const cm = polar(CX, CY, R_TEMP + 7, curAng);
@@ -9577,6 +9579,39 @@ ${FACE.KEYFRAMES}
     static getConfigElement() { return document.createElement('clim-flex-card-editor'); }
     static getStubConfig(hass) { return {...ClimateClusterCard.getStubConfig(hass),fan_clover:true,fan_style:'silk'}; }
     setConfig(config){super.setConfig(config);this._flexApplySize();}
+    _isHeatCool() { return false; }
+    _flexTarget(attr) {
+      return super._isHeatCool() ? (this._hcLow() + this._hcHigh()) / 2 : super._flexTarget(attr);
+    }
+    _flexRoom(attr) {
+      const sensor = this._st(this._config?.room_temperature_entity);
+      const temperature = sensor?.state?.trim() ? Number(sensor.state) : NaN;
+      if (!Number.isFinite(temperature)) return super._flexRoom(attr);
+      const unit = sensor.attributes?.unit_of_measurement;
+      if (unit === '°C') return this._unit() === 'F' ? cToF(temperature) : temperature;
+      if (unit === '°F') return this._unit() === 'C' ? fToC(temperature) : temperature;
+      return super._flexRoom(attr);
+    }
+    _callTemp(target) {
+      if (!super._isHeatCool()) return super._callTemp(target);
+      if (target == null) return;
+      const entity = this._config.entity;
+      const attr = this._st(entity).attributes;
+      const low = num(attr.target_temp_low), high = num(attr.target_temp_high);
+      const step = num(attr.target_temp_step);
+      let shift = this._toHa(target) - (low + high) / 2;
+      if (step > 0) shift = Math.round(shift / step) * step;
+      shift = clamp(shift, (num(attr.min_temp) ?? -Infinity) - low,
+        (num(attr.max_temp) ?? Infinity) - high);
+      const rounded = value => Math.round(value * 100) / 100;
+      const nextLow = rounded(low + shift), nextHigh = rounded(high + shift);
+      this._optimisticTarget = this._toDisplay((nextLow + nextHigh) / 2);
+      this._paintTempArc(this._optimisticTarget);
+      if (nextLow === low && nextHigh === high) return;
+      this._svc('climate', 'set_temperature', {
+        entity_id: entity, target_temp_low: nextLow, target_temp_high: nextHigh,
+      }, () => this._revertTemp());
+    }
     connectedCallback(){
       super.connectedCallback();
       if(typeof ResizeObserver!=='undefined'){
@@ -9744,6 +9779,7 @@ ${FACE.KEYFRAMES}
     _form(schema,data,callback){
       const form=document.createElement('ha-form');form.hass=this._hass;form.schema=schema;form.data=data;
       const labels={name:'Nom sous le bouton',action:'Action',entity:'Entité (vide = climatisation)',display_value:'Texte affiché (vide = état actuel)',value:'Mode fixe : heat, cool, off…',color:'Couleur (facultative)',service:'Action Home Assistant : domaine.action',data:'Données de l’action',fan_toggle_manual:'FAN : permettre le retour en manuel',card_width:'Largeur (ex. 100%, 80% ou 500px)',card_height:'Hauteur (ex. 250px ; vide = automatique)',keep_ratio:'Conserver les proportions du cadran'};
+      labels.room_temperature_entity='Capteur de température ambiante (facultatif)';
       form.computeLabel=field=>labels[field.name]||field.name;form.addEventListener('value-changed',e=>{e.stopPropagation();form.data={...e.detail.value};callback(e.detail.value);});return form;
     }
     _render(){
@@ -9756,7 +9792,18 @@ ${FACE.KEYFRAMES}
         this._config.keep_ratio=value.keep_ratio===true;this._emit();
       }));this.shadowRoot.prepend(sizing);
       const native=document.createElement('clim-flex-native-editor');native.hass=this._hass;native.setConfig(this._config);
-      native.addEventListener('config-changed',e=>{e.stopPropagation();const next={...e.detail.config};if(Array.isArray(this._config.buttons))next.buttons=this._config.buttons;else delete next.buttons;for(const key of ['fan_toggle_manual','card_width','card_height','keep_ratio']){if(key in this._config)next[key]=this._config[key];else delete next[key];}this._config=next;this._emit();});this.shadowRoot.querySelector('#native').appendChild(native);
+      native.addEventListener('config-changed',e=>{e.stopPropagation();const next={...e.detail.config};if(Array.isArray(this._config.buttons))next.buttons=this._config.buttons;else delete next.buttons;for(const key of ['fan_toggle_manual','card_width','card_height','keep_ratio','room_temperature_entity']){if(key in this._config)next[key]=this._config[key];else delete next[key];}this._config=next;this._emit();});
+      const climateSettings=this.shadowRoot.querySelector('#native');
+      climateSettings.appendChild(this._form(
+        [{name:'room_temperature_entity',selector:{entity:{filter:[{domain:'sensor'}]}}}],
+        {room_temperature_entity:this._config.room_temperature_entity},
+        value=>{
+          if(value.room_temperature_entity)this._config.room_temperature_entity=value.room_temperature_entity;
+          else delete this._config.room_temperature_entity;
+          this._emit();
+        }
+      ));
+      climateSettings.appendChild(native);
       this.shadowRoot.querySelector('#fan').appendChild(this._form([{name:'fan_toggle_manual',selector:{boolean:{}}}],{fan_toggle_manual:this._config.fan_toggle_manual!==false},value=>{this._config.fan_toggle_manual=value.fan_toggle_manual;this._emit();}));
       const buttons=Array.isArray(this._config.buttons)?this._config.buttons:[];
       buttons.forEach((b,i)=>{

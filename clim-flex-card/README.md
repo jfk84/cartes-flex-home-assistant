@@ -37,6 +37,10 @@ keep_ratio: false
 
 [Exemple YAML à télécharger](exemple.yaml)
 
+Dans l’éditeur visuel, **Capteur de température ambiante** permet de choisir un capteur séparé. En YAML, ajoutez par exemple `room_temperature_entity: sensor.temperature_piece` au même niveau que `entity`. Le capteur alimente l’affichage **ROOM** et la climatisation garde sa propre régulation.
+
+Le cadran affiche une seule consigne. Si la climatisation fournit une plage, la valeur affichée est le milieu de cette plage et les boutons **+ / −** déplacent ses deux bornes.
+
 ## Crédits
 
 Clim Flex adapte [Climate Cluster Card](https://github.com/rickyfont94/climate-cluster-card) de rickyfont94. La [licence MIT d’origine](LICENSE) accompagne le code.
