@@ -1197,7 +1197,7 @@ SOFTWARE.
       '<circle cx="' + f(x0 + 5) + '" cy="303" r="4.5" fill="' + ink + '" ' +
         'style="animation:pulse 1.9s ease-in-out infinite"></circle>' +
       '<text x="' + f(x0 + 21) + '" y="309" font-size="16" font-weight="600" ' +
-        'letter-spacing="3.4" style="fill:var(--ct-face-mode-text, ' + ink + ')">' + word + '</text>' +
+        'letter-spacing="3.4" style="fill:var(--ct-face-mode-text, ' + ink + ')">' + escapeText(word) + '</text>' +
       presetGlyph(preset, ink, x0 + 21 + tw + 12, 303) + '</g>';
   }
 
@@ -1279,10 +1279,10 @@ SOFTWARE.
         '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="27" rx="8" ' +
           'fill="' + fill + '" stroke="' + stroke + '"></rect>' +
         '<text x="' + f(tx) + '" y="' + (y + 14) + '" text-anchor="middle" font-size="14" ' +
-          'font-weight="600" letter-spacing="1.1" style="fill:' + tint + '">' + c.value + '</text>' +
+          'font-weight="600" letter-spacing="1.1" style="fill:' + tint + '">' + escapeText(c.value) + '</text>' +
         '<text x="' + f(tx) + '" y="' + (y + 23.5) + '" text-anchor="middle" font-size="8" ' +
           'font-weight="600" letter-spacing="1.5" style="fill:var(--ct-face-sub, rgba(200,215,235,.55))">' +
-          c.caption + '</text></g>';
+          escapeText(c.caption) + '</text></g>';
     });
     return out;
   }
@@ -2100,7 +2100,7 @@ SOFTWARE.
       (nore ? EMPTY_STRIP : strip(z, d)) +
       '<div style="display:flex; align-items:center; justify-content:center; gap:8px; padding-top:1px;">' +
         '<span style="font:600 10.5px/1 ui-monospace,monospace; letter-spacing:.06em; color:' +
-          actInk + ';">' + act + '</span>' +
+          actInk + ';">' + escapeText(act) + '</span>' +
         presetIcon(z.preset, m.ink) +
         fanBars(z.fan) + '</div></div>';
   }
@@ -10052,7 +10052,7 @@ ${FACE.KEYFRAMES}
           case 'more_info':value='⋯';break;default:value='GO';
         }
         if(b.display_value)value=b.display_value;
-        return {key:'flex:'+index,value:escapeText(String(value).toUpperCase().slice(0,8)),caption:escapeText(String(b.name||original?.caption||'BOUTON').toUpperCase().slice(0,9)),lit,widest:original?.widest||'100%'};
+        return {key:'flex:'+index,value:String(value).toUpperCase().slice(0,8),caption:String(b.name||original?.caption||'BOUTON').toUpperCase().slice(0,9),lit,widest:original?.widest||'100%'};
       }).filter(Boolean);
     }
     _onFaceClick(event) {
@@ -10178,7 +10178,7 @@ ${FACE.KEYFRAMES}
   if(!customElements.get('clim-flex-card'))customElements.define('clim-flex-card',ClimFlexOriginalCard);
   if(!customElements.get('clim-flex-card-editor'))customElements.define('clim-flex-card-editor',ClimFlexOriginalEditor);
   window.customCards=window.customCards||[];
-  window.customCards.push({type:'clim-flex-card',name:'Clim Flex — visuel original',description:'Climate Cluster Card : cadran et animations d’origine, boutons personnalisables.',preview:true,documentationURL:'https://github.com/rickyfont94/climate-cluster-card'});
+  window.customCards.push({type:'clim-flex-card',name:'Clim Flex — visuel original',description:'Climate Cluster Card : cadran et animations d’origine, boutons personnalisables.',preview:true,documentationURL:'https://github.com/jfk84/cartes-flex-home-assistant/blob/main/clim-flex-card/README.md'});
 
 })();
 
