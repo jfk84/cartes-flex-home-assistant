@@ -405,9 +405,9 @@ SOFTWARE.
   const NS = "http://www.w3.org/2000/svg";
 
   // ---- console version banner ---------------------------------------------
-  const VERSION = "2.3.1";
+  const VERSION = "1.0.3";
   console.info(
-    "%c CLIMATE-CLUSTER-CARD %c v" + VERSION + " ",
+    "%c CLIM-FLEX-CARD %c pack v" + VERSION + " ",
     "color:#0b0f16;background:#4fc3f7;font-weight:700;border-radius:4px 0 0 4px;padding:2px 6px",
     "color:#4fc3f7;background:#0b0f16;border-radius:0 4px 4px 0;padding:2px 6px"
   );
@@ -2143,7 +2143,7 @@ SOFTWARE.
         var bg = a.warn ? 'rgba(242,147,58,.16)' : a.lit ? 'rgba(39,211,255,.09)'
           : 'linear-gradient(158deg, rgba(255,255,255,.10), rgba(255,255,255,.03))';
         var ink = a.warn ? '#FFD3A1' : a.lit ? '#7fe4ff' : '#e1e5ea';
-        return '<button type="button" data-gact="' + a.id + '" style="appearance:none; ' +
+        return '<button type="button" data-gact="' + escapeAttr(a.id) + '" style="appearance:none; ' +
           'cursor:pointer; min-height:40px; padding:0 30px; border-radius:10px; ' +
           'font:600 12.5px/1 Rajdhani,sans-serif; letter-spacing:.16em; text-transform:uppercase; ' +
           'border:1px solid ' + border + '; background:' + bg + '; color:' + ink + '; ' +
@@ -2455,9 +2455,9 @@ SOFTWARE.
   // Accept either [r,g,b] (editor color_rgb selector) or a plain color string.
   function toColor(v) {
     if (v == null) return null;
-    if (Array.isArray(v)) return v.length ? "rgb(" + v.join(",") + ")" : null;
-    const s = String(v).trim();
-    return s ? s : null;
+    if (Array.isArray(v) && (v.length !== 3 || !v.every(n => typeof n === "number" && Number.isFinite(n) && n >= 0 && n <= 255))) return null;
+    const s = Array.isArray(v) ? "rgb(" + v.join(",") + ")" : String(v).trim();
+    return s && !/[<>"'\\\\]/.test(s) && CSS.supports("color", s) ? s : null;
   }
 
   // Color -> [r,g,b] for the ha-form color_rgb selector (it ONLY renders an array;
@@ -2465,9 +2465,10 @@ SOFTWARE.
   // rgb()/rgba() string, and #rgb / #rrggbb hex. Returns null if unparseable.
   function colorToRgb(v) {
     if (v == null) return null;
-    if (Array.isArray(v)) return v.length >= 3 ? [+v[0], +v[1], +v[2]] : null;
-    const s = String(v).trim();
-    let m = s.match(/rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)/i);
+    if (Array.isArray(v)) return toColor(v) ? v.slice() : null;
+    const s = toColor(v);
+    if (!s) return null;
+    let m = s.match(/^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*[\d.]+%?\s*)?\)$/i);
     if (m) return [Math.round(+m[1]), Math.round(+m[2]), Math.round(+m[3])];
     m = s.match(/^#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/);
     if (m) {
@@ -10178,7 +10179,7 @@ ${FACE.KEYFRAMES}
   if(!customElements.get('clim-flex-card'))customElements.define('clim-flex-card',ClimFlexOriginalCard);
   if(!customElements.get('clim-flex-card-editor'))customElements.define('clim-flex-card-editor',ClimFlexOriginalEditor);
   window.customCards=window.customCards||[];
-  window.customCards.push({type:'clim-flex-card',name:'Clim Flex — visuel original',description:'Climate Cluster Card : cadran et animations d’origine, boutons personnalisables.',preview:true,documentationURL:'https://github.com/jfk84/cartes-flex-home-assistant/blob/main/clim-flex-card/README.md'});
+  if(!window.customCards.some(card=>card.type==='clim-flex-card'))window.customCards.push({type:'clim-flex-card',name:'Clim Flex — visuel original',description:'Climate Cluster Card : cadran et animations d’origine, boutons personnalisables.',preview:true,documentationURL:'https://github.com/jfk84/cartes-flex-home-assistant/blob/main/clim-flex-card/README.md'});
 
 })();
 
